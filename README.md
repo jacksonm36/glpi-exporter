@@ -155,17 +155,36 @@ The application creates two files next to the `.exe` (both are gitignored):
 
 ## Dependencies
 
-| Crate | Purpose |
-|---|---|
-| `eframe` / `egui_extras` | Native GUI framework |
-| `reqwest` | HTTP client (blocking, rustls-tls) |
-| `serde` / `serde_json` | JSON serialization |
-| `csv` | CSV export |
-| `rust_xlsxwriter` | Excel export with formatting |
-| `chrono` | Date/time handling |
-| `rfd` | Native file dialogs |
-| `image` | Image support (PNG) |
+All dependencies use permissive licenses (MIT and/or Apache 2.0) that are compatible with GPL v3.
+
+| Crate | License | Purpose |
+|---|---|---|
+| `eframe` / `egui_extras` | MIT / Apache 2.0 | Native GUI framework |
+| `reqwest` | MIT / Apache 2.0 | HTTP client (blocking, rustls-tls) |
+| `serde` / `serde_json` | MIT / Apache 2.0 | JSON serialization |
+| `csv` | MIT / Unlicense | CSV export |
+| `rust_xlsxwriter` | MIT / Apache 2.0 | Excel export with formatting |
+| `chrono` | MIT / Apache 2.0 | Date/time handling |
+| `rfd` | MIT | Native file dialogs |
+| `image` | MIT / Apache 2.0 | Image support (PNG) |
 
 ## License
 
-This project is provided as-is for internal use. See the repository for any license details.
+This project is licensed under the **GNU General Public License v3.0 or later** (GPL-3.0-or-later).
+
+See the [LICENSE](LICENSE) file for the full license text.
+
+This project communicates with [GLPI](https://glpi-project.org/) (licensed under GPL v3) exclusively through its public REST API. No GLPI source code is included in or linked by this project.
+
+### In short
+
+- You are free to use, modify, and distribute this software
+- If you distribute modified versions, you must also release the source code under GPL v3
+- This software comes with no warranty
+
+For the full terms, see the [GNU GPL v3](https://www.gnu.org/licenses/gpl-3.0.html).
+
+## Acknowledgements
+
+- [GLPI Project](https://glpi-project.org/) -- the open-source IT asset management platform this tool connects to (GPL v3)
+- [egui](https://github.com/emilk/egui) -- the immediate-mode GUI library powering the interface (MIT / Apache 2.0)

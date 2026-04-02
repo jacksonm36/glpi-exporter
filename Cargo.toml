@@ -2,6 +2,8 @@
 name = "glpi-software-export"
 version = "1.0.0"
 edition = "2021"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/jacksonm36/glpi-exporter"
 description = "GLPI Software Inventory Explorer - GUI tool to browse and export software installations"
 
 [dependencies]
