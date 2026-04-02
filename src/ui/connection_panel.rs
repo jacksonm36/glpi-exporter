@@ -1,58 +1,58 @@
 use crate::app::AppState;
+use crate::models::FetchStatus;
 use eframe::egui;
 
 pub fn show(ui: &mut egui::Ui, state: &mut AppState) {
+    let t = state.t();
+
     ui.horizontal(|ui| {
-        ui.label("GLPI URL:");
+        ui.label(t.glpi_url);
         ui.add(
             egui::TextEdit::singleline(&mut state.config.glpi_url)
                 .desired_width(300.0)
-                .hint_text("https://glpi.example.com"),
+                .hint_text(t.glpi_url_hint),
         );
     });
 
     ui.horizontal(|ui| {
-        ui.label("User Token:");
+        ui.label(t.user_token);
         ui.add(
             egui::TextEdit::singleline(&mut state.config.user_token)
                 .desired_width(250.0)
                 .password(true)
-                .hint_text("Your GLPI API user token"),
+                .hint_text(t.user_token_hint),
         );
 
         ui.add_space(10.0);
-        ui.label("App Token:");
+        ui.label(t.app_token);
         ui.add(
             egui::TextEdit::singleline(&mut state.config.app_token)
                 .desired_width(250.0)
                 .password(true)
-                .hint_text("Optional"),
+                .hint_text(t.app_token_hint),
         );
     });
 
     ui.horizontal(|ui| {
-        ui.checkbox(
-            &mut state.config.accept_invalid_certs,
-            "Accept invalid TLS certificates",
-        )
-        .on_hover_text("Only enable this for self-signed certificates. Disables TLS verification.");
+        ui.checkbox(&mut state.config.accept_invalid_certs, t.accept_invalid_tls)
+            .on_hover_text(t.accept_invalid_tls_tip);
 
         ui.add_space(10.0);
         ui.colored_label(
             egui::Color32::from_rgb(180, 140, 0),
-            "Tokens are saved in plaintext next to the .exe",
+            t.tokens_warning,
         );
     });
 
     ui.horizontal(|ui| {
         let is_fetching = matches!(
             state.status,
-            crate::models::FetchStatus::Connecting
-                | crate::models::FetchStatus::FetchingSoftware { .. }
-                | crate::models::FetchStatus::FetchingVersions { .. }
-                | crate::models::FetchStatus::FetchingInstallations { .. }
-                | crate::models::FetchStatus::FetchingComputers { .. }
-                | crate::models::FetchStatus::Aggregating
+            FetchStatus::Connecting
+                | FetchStatus::FetchingSoftware { .. }
+                | FetchStatus::FetchingVersions { .. }
+                | FetchStatus::FetchingInstallations { .. }
+                | FetchStatus::FetchingComputers { .. }
+                | FetchStatus::Aggregating
         );
 
         let can_connect = !state.config.glpi_url.is_empty()
@@ -60,7 +60,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut AppState) {
             && !is_fetching;
 
         if ui
-            .add_enabled(can_connect, egui::Button::new("Connect & Fetch"))
+            .add_enabled(can_connect, egui::Button::new(t.connect_fetch))
             .clicked()
         {
             state.request_fetch();
@@ -68,12 +68,12 @@ pub fn show(ui: &mut egui::Ui, state: &mut AppState) {
 
         ui.add_space(10.0);
 
-        let status_text = format!("Status: {}", state.status);
+        let status_text = format!("{}: {}", t.status_prefix, format_status(&state.status, t));
         match &state.status {
-            crate::models::FetchStatus::Error(_) => {
+            FetchStatus::Error(_) => {
                 ui.colored_label(egui::Color32::RED, &status_text);
             }
-            crate::models::FetchStatus::Done { .. } => {
+            FetchStatus::Done { .. } => {
                 ui.colored_label(egui::Color32::from_rgb(0, 150, 0), &status_text);
             }
             _ => {
@@ -81,4 +81,44 @@ pub fn show(ui: &mut egui::Ui, state: &mut AppState) {
             }
         }
     });
+}
+
+fn format_status(status: &FetchStatus, t: &crate::i18n::T) -> String {
+    match status {
+        FetchStatus::Idle => t.status_idle.to_string(),
+        FetchStatus::Connecting => t.status_connecting.to_string(),
+        FetchStatus::FetchingSoftware { done, total } => {
+            if let Some(tot) = total {
+                format!("{}: {done}/{tot}", t.status_fetching_software)
+            } else {
+                format!("{}: {done}...", t.status_fetching_software)
+            }
+        }
+        FetchStatus::FetchingVersions { done, total } => {
+            if let Some(tot) = total {
+                format!("{}: {done}/{tot}", t.status_fetching_versions)
+            } else {
+                format!("{}: {done}...", t.status_fetching_versions)
+            }
+        }
+        FetchStatus::FetchingInstallations { done, total } => {
+            if let Some(tot) = total {
+                format!("{}: {done}/{tot}", t.status_fetching_installations)
+            } else {
+                format!("{}: {done}...", t.status_fetching_installations)
+            }
+        }
+        FetchStatus::FetchingComputers { done, total } => {
+            if let Some(tot) = total {
+                format!("{}: {done}/{tot}", t.status_fetching_computers)
+            } else {
+                format!("{}: {done}...", t.status_fetching_computers)
+            }
+        }
+        FetchStatus::Aggregating => t.status_aggregating.to_string(),
+        FetchStatus::Done { software_count, total_hosts } => {
+            format!("{} {software_count} software / {total_hosts} hosts", t.status_loaded)
+        }
+        FetchStatus::Error(e) => format!("{}: {e}", t.status_error),
+    }
 }

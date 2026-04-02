@@ -1,4 +1,5 @@
 use crate::config::AppConfig;
+use crate::i18n::{self, Lang, T};
 use crate::models::*;
 use crate::ui;
 use crate::worker::{WorkerRequest, WorkerResponse};
@@ -23,6 +24,14 @@ pub struct AppState {
 }
 
 impl AppState {
+    pub fn lang(&self) -> Lang {
+        self.config.language
+    }
+
+    pub fn t(&self) -> &'static T {
+        i18n::t(self.config.language)
+    }
+
     pub fn request_fetch(&mut self) {
         self.config.save();
         self.all_data.clear();
@@ -97,6 +106,7 @@ impl eframe::App for GlpiApp {
         self.state.poll_worker();
 
         let sel_snapshot = self.state.selected.len();
+        let t = self.state.t();
 
         let is_fetching = matches!(
             self.state.status,
@@ -114,7 +124,19 @@ impl eframe::App for GlpiApp {
 
         egui::TopBottomPanel::top("connection_panel").show(ctx, |ui| {
             ui.add_space(4.0);
-            ui.heading("GLPI Software Inventory Explorer");
+            ui.horizontal(|ui| {
+                ui.heading(t.app_title);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    let lang = self.state.lang();
+                    let next = lang.toggle();
+                    if ui.button(next.label()).on_hover_text(
+                        if lang == Lang::En { "Váltás magyarra" } else { "Switch to English" }
+                    ).clicked() {
+                        self.state.config.language = next;
+                        self.state.config.save();
+                    }
+                });
+            });
             ui.add_space(4.0);
             ui.separator();
             ui.add_space(4.0);
@@ -124,7 +146,7 @@ impl eframe::App for GlpiApp {
 
         egui::TopBottomPanel::bottom("status_panel").show(ctx, |ui| {
             ui.add_space(2.0);
-            ui::status_bar::show(ui, &self.state.filtered_data, self.state.all_data.len());
+            ui::status_bar::show(ui, &self.state.filtered_data, self.state.all_data.len(), t);
             ui.add_space(2.0);
         });
 
@@ -134,7 +156,7 @@ impl eframe::App for GlpiApp {
         egui::TopBottomPanel::top("filter_export_panel").show(ctx, |ui| {
             ui.add_space(4.0);
             ui.separator();
-            let changed = ui::filter_panel::show(ui, &mut self.state.filters, &self.state.filtered_data, &mut self.state.selected, &mut self.state.show_pc_panel);
+            let changed = ui::filter_panel::show(ui, &mut self.state.filters, &self.state.filtered_data, &mut self.state.selected, &mut self.state.show_pc_panel, t);
             if changed {
                 self.state.filtered_data =
                     ui::filter_panel::apply_filters(&self.state.all_data, &self.state.filters, &self.state.selected);
@@ -145,6 +167,7 @@ impl eframe::App for GlpiApp {
                 &self.state.filtered_data,
                 &mut self.state.export_message,
                 recent_days,
+                t,
             );
             ui.add_space(4.0);
             ui.separator();
@@ -156,10 +179,11 @@ impl eframe::App for GlpiApp {
             &self.state.selected,
             &self.state.computers,
             &mut self.state.show_pc_panel,
+            t,
         );
 
         egui::CentralPanel::default().show(ctx, |ui| {
-            let sel_changed = ui::software_table::show(ui, &self.state.filtered_data, &mut self.state.expanded, &mut self.state.detail_tabs, &mut self.state.selected, recent_days, &self.state.computers);
+            let sel_changed = ui::software_table::show(ui, &self.state.filtered_data, &mut self.state.expanded, &mut self.state.detail_tabs, &mut self.state.selected, recent_days, &self.state.computers, t);
             if sel_changed {
                 selection_dirty = true;
                 if self.state.filters.show_selected_only {

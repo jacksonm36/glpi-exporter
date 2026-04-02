@@ -6,6 +6,7 @@ mod config;
 mod date_util;
 mod export;
 mod glpi_client;
+pub mod i18n;
 mod models;
 mod ui;
 mod worker;

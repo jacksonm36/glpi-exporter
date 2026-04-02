@@ -1,4 +1,5 @@
 use crate::date_util;
+use crate::i18n::T;
 use crate::models::{AggregatedSoftware, FilterState};
 use eframe::egui;
 use std::collections::HashSet;
@@ -9,26 +10,27 @@ pub fn show(
     visible_data: &[AggregatedSoftware],
     selected: &mut HashSet<u64>,
     show_pc_panel: &mut bool,
+    t: &T,
 ) -> bool {
     let mut changed = false;
 
     ui.horizontal(|ui| {
-        ui.label("Software Name:");
+        ui.label(t.software_name);
         let r = ui.add(
             egui::TextEdit::singleline(&mut filters.software_name)
                 .desired_width(200.0)
-                .hint_text("Search..."),
+                .hint_text(t.search_hint),
         );
         if r.changed() {
             changed = true;
         }
 
         ui.add_space(10.0);
-        ui.label("Publisher:");
+        ui.label(t.publisher);
         let r = ui.add(
             egui::TextEdit::singleline(&mut filters.publisher)
                 .desired_width(200.0)
-                .hint_text("Search..."),
+                .hint_text(t.search_hint),
         );
         if r.changed() {
             changed = true;
@@ -36,7 +38,7 @@ pub fn show(
     });
 
     ui.horizontal(|ui| {
-        ui.label("Min Hosts:");
+        ui.label(t.min_hosts);
         let r = ui.add(
             egui::TextEdit::singleline(&mut filters.min_hosts)
                 .desired_width(60.0)
@@ -49,7 +51,7 @@ pub fn show(
 
         ui.add_space(10.0);
         if ui
-            .checkbox(&mut filters.recently_updated, "Updated in last")
+            .checkbox(&mut filters.recently_updated, t.updated_in_last)
             .changed()
         {
             changed = true;
@@ -63,14 +65,14 @@ pub fn show(
             filters.days.retain(|c| c.is_ascii_digit());
             changed = true;
         }
-        ui.label("days");
+        ui.label(t.days);
 
         ui.add_space(10.0);
-        ui.label("Top N:");
+        ui.label(t.top_n);
         let r = ui.add(
             egui::TextEdit::singleline(&mut filters.top_n)
                 .desired_width(60.0)
-                .hint_text("All"),
+                .hint_text(t.all_hint),
         );
         if r.changed() {
             filters.top_n.retain(|c| c.is_ascii_digit());
@@ -79,19 +81,15 @@ pub fn show(
 
         ui.add_space(10.0);
         if ui
-            .checkbox(&mut filters.hide_os_defaults, "Hide OS defaults")
-            .on_hover_text(
-                "Hide all default Windows / Microsoft OS components\n\
-                 including built-in apps (EN + HU), UWP packages,\n\
-                 updates, runtimes, redistributables, and GUID entries",
-            )
+            .checkbox(&mut filters.hide_os_defaults, t.hide_os_defaults)
+            .on_hover_text(t.hide_os_defaults_tip)
             .changed()
         {
             changed = true;
         }
 
         ui.add_space(10.0);
-        if ui.button("Clear Filters").clicked() {
+        if ui.button(t.clear_filters).clicked() {
             *filters = FilterState::default();
             changed = true;
         }
@@ -100,23 +98,20 @@ pub fn show(
     ui.horizontal(|ui| {
         let sel_count = selected.len();
         if ui
-            .checkbox(&mut filters.show_selected_only, "Show selected only")
-            .on_hover_text(format!(
-                "Only show the {} software you have checked",
-                sel_count
-            ))
+            .checkbox(&mut filters.show_selected_only, t.show_selected_only)
+            .on_hover_text(t.show_selected_only_tip)
             .changed()
         {
             changed = true;
         }
 
         ui.add_space(10.0);
-        ui.label(format!("{} selected", sel_count));
+        ui.label(format!("{} {}", sel_count, t.n_selected));
 
         ui.add_space(10.0);
         if ui
-            .button("Select all visible")
-            .on_hover_text("Check all items currently shown in the table")
+            .button(t.select_all_visible)
+            .on_hover_text(t.select_all_visible_tip)
             .clicked()
         {
             for sw in visible_data {
@@ -124,7 +119,7 @@ pub fn show(
             }
         }
 
-        if ui.button("Deselect all").clicked() {
+        if ui.button(t.deselect_all).clicked() {
             selected.clear();
             if filters.show_selected_only {
                 filters.show_selected_only = false;
@@ -135,10 +130,10 @@ pub fn show(
         ui.add_space(10.0);
         ui.separator();
         ui.add_space(10.0);
-        let pc_label = if *show_pc_panel { "Hide PCs" } else { "Show PCs" };
+        let pc_label = if *show_pc_panel { t.hide_pcs } else { t.show_pcs };
         if ui
             .add_enabled(!selected.is_empty(), egui::Button::new(pc_label))
-            .on_hover_text("Show which computers have the selected software installed")
+            .on_hover_text(t.show_pcs_tip)
             .clicked()
         {
             *show_pc_panel = !*show_pc_panel;

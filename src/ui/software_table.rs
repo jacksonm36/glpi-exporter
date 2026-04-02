@@ -1,4 +1,5 @@
 use crate::date_util;
+use crate::i18n::T;
 use crate::models::{AggregatedSoftware, ComputerInfo};
 use eframe::egui;
 use std::collections::{HashMap, HashSet};
@@ -12,11 +13,12 @@ pub fn show(
     selected: &mut HashSet<u64>,
     recent_days: i64,
     computers: &HashMap<u64, ComputerInfo>,
+    t: &T,
 ) -> bool {
     let mut selection_changed = false;
     if data.is_empty() {
         ui.centered_and_justified(|ui| {
-            ui.label("No data loaded. Connect to GLPI and fetch data to begin.");
+            ui.label(t.no_data_msg);
         });
         return false;
     }
@@ -30,7 +32,6 @@ pub fn show(
                 .striped(true)
                 .min_col_width(0.0)
                 .show(ui, |ui| {
-                    // Header row
                     let all_visible_selected =
                         data.iter().all(|sw| selected.contains(&sw.software_id));
                     let mut header_checked = all_visible_selected && !data.is_empty();
@@ -46,13 +47,13 @@ pub fn show(
                         }
                         selection_changed = true;
                     }
-                    ui.strong("#");
-                    ui.strong("Software Name");
-                    ui.strong("Publisher");
-                    ui.strong("Hosts");
-                    ui.strong("Latest Version");
-                    ui.strong("Last Updated");
-                    ui.strong("Recent");
+                    ui.strong(t.col_rank);
+                    ui.strong(t.col_software_name);
+                    ui.strong(t.col_publisher);
+                    ui.strong(t.col_hosts);
+                    ui.strong(t.col_latest_version);
+                    ui.strong(t.col_last_updated);
+                    ui.strong(t.col_recent);
                     ui.end_row();
 
                     let now = chrono::Local::now().naive_local().date();
@@ -63,7 +64,6 @@ pub fn show(
                         let recent =
                             date_util::is_recent(&sw.last_updated, now, recent_days);
 
-                        // Checkbox
                         let mut is_selected = selected.contains(&sw.software_id);
                         if ui.checkbox(&mut is_selected, "").clicked() {
                             if is_selected {
@@ -74,7 +74,6 @@ pub fn show(
                             selection_changed = true;
                         }
 
-                        // Row data
                         ui.label(format!("{}", i + 1));
                         let label_text = format!("{} {}", toggle_text, &sw.name);
                         let resp = ui.add(
@@ -96,26 +95,26 @@ pub fn show(
                         ui.label(sw.last_updated.as_deref().unwrap_or("-"));
                         {
                             let date_tip =
-                                sw.last_updated.as_deref().unwrap_or("No date");
+                                sw.last_updated.as_deref().unwrap_or(t.no_date);
                             if recent {
                                 ui.colored_label(
                                     egui::Color32::from_rgb(0, 150, 0),
-                                    "Yes",
+                                    t.yes,
                                 )
                                 .on_hover_text(date_tip);
                             } else {
-                                ui.colored_label(egui::Color32::GRAY, "No")
+                                ui.colored_label(egui::Color32::GRAY, t.no)
                                     .on_hover_text(date_tip);
                             }
                         }
                         ui.end_row();
 
-                        // Expanded detail panel with tabs
                         if is_expanded {
                             ui.label("");
                             ui.label("");
                             ui.vertical(|ui| {
-                                let active_tab = detail_tabs.entry(sw.software_id).or_insert(0);
+                                let active_tab =
+                                    detail_tabs.entry(sw.software_id).or_insert(0);
 
                                 egui::Frame::new()
                                     .inner_margin(10.0)
@@ -126,21 +125,25 @@ pub fn show(
                                         egui::Color32::from_rgb(80, 120, 180),
                                     ))
                                     .show(ui, |ui| {
-                                        // Tab bar
                                         ui.horizontal(|ui| {
                                             let ver_label = format!(
-                                                "Versions ({})",
+                                                "{} ({})",
+                                                t.versions_tab,
                                                 sw.versions.len()
                                             );
-                                            let pc_count = sw.host_ids.len();
-                                            let pc_label =
-                                                format!("PCs ({})", pc_count);
+                                            let pc_label = format!(
+                                                "{} ({})",
+                                                t.pcs_tab,
+                                                sw.host_ids.len()
+                                            );
 
-                                            if tab_button(ui, &ver_label, *active_tab == 0) {
+                                            if tab_button(ui, &ver_label, *active_tab == 0)
+                                            {
                                                 *active_tab = 0;
                                             }
                                             ui.add_space(4.0);
-                                            if tab_button(ui, &pc_label, *active_tab == 1) {
+                                            if tab_button(ui, &pc_label, *active_tab == 1)
+                                            {
                                                 *active_tab = 1;
                                             }
                                         });
@@ -149,10 +152,17 @@ pub fn show(
                                         ui.separator();
                                         ui.add_space(4.0);
 
-                                        // Tab content
                                         match *active_tab {
-                                            0 => render_versions_tab(ui, sw, now, recent_days),
-                                            1 => render_pcs_tab(ui, sw, computers),
+                                            0 => render_versions_tab(
+                                                ui,
+                                                sw,
+                                                now,
+                                                recent_days,
+                                                t,
+                                            ),
+                                            1 => {
+                                                render_pcs_tab(ui, sw, computers, t)
+                                            }
                                             _ => {}
                                         }
                                     });
@@ -196,9 +206,10 @@ fn render_versions_tab(
     sw: &AggregatedSoftware,
     now: chrono::NaiveDate,
     recent_days: i64,
+    t: &T,
 ) {
     if sw.versions.is_empty() {
-        ui.label("No version data available.");
+        ui.label(t.no_version_data);
         return;
     }
 
@@ -211,22 +222,21 @@ fn render_versions_tab(
                 .spacing([12.0, 3.0])
                 .striped(true)
                 .show(ui, |ui| {
-                    ui.label(egui::RichText::new("Version").strong().size(12.0));
-                    ui.label(egui::RichText::new("Hosts").strong().size(12.0));
-                    ui.label(egui::RichText::new("Last Install").strong().size(12.0));
-                    ui.label(egui::RichText::new("Recent").strong().size(12.0));
+                    ui.label(egui::RichText::new(t.col_version).strong().size(12.0));
+                    ui.label(egui::RichText::new(t.col_hosts).strong().size(12.0));
+                    ui.label(
+                        egui::RichText::new(t.col_last_install).strong().size(12.0),
+                    );
+                    ui.label(egui::RichText::new(t.col_recent).strong().size(12.0));
                     ui.end_row();
 
                     for ver in &sw.versions {
                         let ver_recent =
                             date_util::is_recent(&ver.last_install_date, now, recent_days);
 
+                        ui.label(egui::RichText::new(&ver.version_name).size(12.0));
                         ui.label(
-                            egui::RichText::new(&ver.version_name).size(12.0),
-                        );
-                        ui.label(
-                            egui::RichText::new(ver.host_count.to_string())
-                                .size(12.0),
+                            egui::RichText::new(ver.host_count.to_string()).size(12.0),
                         );
                         ui.label(
                             egui::RichText::new(
@@ -237,12 +247,12 @@ fn render_versions_tab(
                         if ver_recent {
                             ui.colored_label(
                                 egui::Color32::from_rgb(0, 150, 0),
-                                egui::RichText::new("Yes").size(12.0),
+                                egui::RichText::new(t.yes).size(12.0),
                             );
                         } else {
                             ui.colored_label(
                                 egui::Color32::GRAY,
-                                egui::RichText::new("No").size(12.0),
+                                egui::RichText::new(t.no).size(12.0),
                             );
                         }
                         ui.end_row();
@@ -255,24 +265,25 @@ fn render_pcs_tab(
     ui: &mut egui::Ui,
     sw: &AggregatedSoftware,
     computers: &HashMap<u64, ComputerInfo>,
+    t: &T,
 ) {
     let mut pc_list: Vec<(&str, &str)> = sw
         .host_ids
         .iter()
         .map(|id| match computers.get(id) {
             Some(info) => (info.name.as_str(), info.contact.as_str()),
-            None => ("Unknown", ""),
+            None => (t.unknown, ""),
         })
         .collect();
     pc_list.sort_by(|a, b| a.0.to_lowercase().cmp(&b.0.to_lowercase()));
 
     if pc_list.is_empty() {
-        ui.label("No installation data.");
+        ui.label(t.no_install_data);
         return;
     }
 
     ui.label(
-        egui::RichText::new(format!("{} PCs with this software:", pc_list.len()))
+        egui::RichText::new(format!("{} {} :", pc_list.len(), t.pcs_with_software))
             .strong()
             .size(12.5),
     );
@@ -287,8 +298,10 @@ fn render_pcs_tab(
                 .spacing([20.0, 3.0])
                 .striped(true)
                 .show(ui, |ui| {
-                    ui.label(egui::RichText::new("PC Name").strong().size(12.0));
-                    ui.label(egui::RichText::new("User / Contact").strong().size(12.0));
+                    ui.label(egui::RichText::new(t.col_pc_name).strong().size(12.0));
+                    ui.label(
+                        egui::RichText::new(t.col_user_contact).strong().size(12.0),
+                    );
                     ui.end_row();
 
                     for (pc_name, contact) in &pc_list {

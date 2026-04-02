@@ -1,20 +1,22 @@
+use crate::i18n::T;
 use crate::models::AggregatedSoftware;
 use eframe::egui;
 
-pub fn show(ui: &mut egui::Ui, filtered_data: &[AggregatedSoftware], total_data: usize) {
+pub fn show(ui: &mut egui::Ui, filtered_data: &[AggregatedSoftware], total_data: usize, t: &T) {
     ui.horizontal(|ui| {
         let total_installations: usize = filtered_data.iter().map(|s| s.total_host_count).sum();
 
         if total_data > 0 {
             ui.label(format!(
-                "Showing {} of {} software",
+                "{} {} / {} software",
+                t.showing_of,
                 filtered_data.len(),
                 total_data
             ));
             ui.separator();
-            ui.label(format!("Total installations: {}", format_number(total_installations)));
+            ui.label(format!("{}: {}", t.total_installations, format_number(total_installations)));
         } else {
-            ui.label("No data loaded");
+            ui.label(t.no_data_loaded);
         }
     });
 }

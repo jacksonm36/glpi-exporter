@@ -19,6 +19,8 @@ pub struct AppConfig {
     pub app_token: String,
     #[serde(default)]
     pub accept_invalid_certs: bool,
+    #[serde(default)]
+    pub language: crate::i18n::Lang,
 }
 
 impl AppConfig {

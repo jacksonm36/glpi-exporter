@@ -1,3 +1,4 @@
+use crate::i18n::T;
 use crate::models::{AggregatedSoftware, ComputerInfo};
 use eframe::egui;
 use std::collections::{HashMap, HashSet};
@@ -8,6 +9,7 @@ pub fn show(
     selected: &HashSet<u64>,
     computers: &HashMap<u64, ComputerInfo>,
     show: &mut bool,
+    t: &T,
 ) {
     if !*show || selected.is_empty() {
         return;
@@ -18,7 +20,7 @@ pub fn show(
         .min_width(250.0)
         .show(ctx, |ui| {
             ui.horizontal(|ui| {
-                ui.strong("PCs with selected software");
+                ui.strong(t.pcs_with_selected);
                 ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
                     if ui.small_button("X").clicked() {
                         *show = false;
@@ -40,7 +42,7 @@ pub fn show(
             }
 
             if pc_to_software.is_empty() {
-                ui.label("No installation data for the selected software.");
+                ui.label(t.no_install_data_selected);
                 return;
             }
 
@@ -56,7 +58,7 @@ pub fn show(
                 .map(|(id, sw_names)| {
                     let (name, contact) = match computers.get(&id) {
                         Some(info) => (info.name.clone(), info.contact.clone()),
-                        None => (format!("Computer #{id}"), String::new()),
+                        None => (format!("#{id}"), String::new()),
                     };
                     PcEntry { id, name, contact, sw_names }
                 })
@@ -64,9 +66,11 @@ pub fn show(
             pc_list.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
 
             ui.label(format!(
-                "{} PCs found across {} selected software",
+                "{} {} {} {} software",
                 pc_list.len(),
-                selected.len()
+                t.pcs_found_across,
+                selected.len(),
+                t.n_selected
             ));
             ui.add_space(4.0);
 
@@ -87,7 +91,7 @@ pub fn show(
                         .show(ui, |ui| {
                             if !pc.contact.is_empty() {
                                 ui.label(
-                                    egui::RichText::new(format!("User: {}", pc.contact)).weak(),
+                                    egui::RichText::new(format!("{}: {}", t.user_prefix, pc.contact)).weak(),
                                 );
                             }
                             for sw in &pc.sw_names {
