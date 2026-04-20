@@ -1,13 +1,57 @@
-use crate::date_util;
-use crate::models::AggregatedSoftware;
+use crate::models::{AggregatedSoftware, ComputerInfo};
 use rust_xlsxwriter::*;
+use std::collections::HashMap;
 use std::path::Path;
 
-pub fn export_excel(data: &[AggregatedSoftware], path: &Path, recent_days: i64) -> Result<(), String> {
+pub fn export_software_inventory_excel(data: &[AggregatedSoftware], path: &Path) -> Result<(), String> {
     let mut workbook = Workbook::new();
+    let sheet = workbook.add_worksheet();
+    sheet
+        .set_name("Software")
+        .map_err(|e| format!("Sheet name error: {e}"))?;
 
-    write_summary_sheet(&mut workbook, data, recent_days)?;
-    write_detail_sheet(&mut workbook, data)?;
+    let header_fmt = Format::new()
+        .set_bold()
+        .set_background_color(Color::RGB(0x4472C4))
+        .set_font_color(Color::White);
+
+    let headers = [
+        "Rank",
+        "Software ID",
+        "Software Name",
+        "Publisher",
+        "Host Count",
+        "Latest Version",
+        "Last install (any host)",
+        "All-hosts install floor",
+        "Last agent pull",
+        "Last host inventory",
+    ];
+
+    for (col, h) in headers.iter().enumerate() {
+        sheet
+            .write_string_with_format(0, col as u16, *h, &header_fmt)
+            .map_err(|e| format!("Excel write error: {e}"))?;
+    }
+
+    let widths = [6.0, 10.0, 36.0, 22.0, 10.0, 18.0, 16.0, 22.0, 16.0, 18.0];
+    for (col, w) in widths.iter().enumerate() {
+        let _ = sheet.set_column_width(col as u16, *w);
+    }
+
+    for (i, sw) in data.iter().enumerate() {
+        let row = (i + 1) as u32;
+        let _ = sheet.write_number(row, 0, (i + 1) as f64);
+        let _ = sheet.write_string(row, 1, &sw.software_id.to_string());
+        let _ = sheet.write_string(row, 2, &sw.name);
+        let _ = sheet.write_string(row, 3, &sw.publisher);
+        let _ = sheet.write_number(row, 4, sw.total_host_count as f64);
+        let _ = sheet.write_string(row, 5, &sw.latest_version);
+        let _ = sheet.write_string(row, 6, sw.last_install_date.as_deref().unwrap_or(""));
+        let _ = sheet.write_string(row, 7, sw.all_hosts_install_floor.as_deref().unwrap_or(""));
+        let _ = sheet.write_string(row, 8, sw.last_agent_pull.as_deref().unwrap_or(""));
+        let _ = sheet.write_string(row, 9, sw.last_host_inventory.as_deref().unwrap_or(""));
+    }
 
     workbook
         .save(path)
@@ -16,76 +60,24 @@ pub fn export_excel(data: &[AggregatedSoftware], path: &Path, recent_days: i64) 
     Ok(())
 }
 
-fn write_summary_sheet(
-    workbook: &mut Workbook,
-    data: &[AggregatedSoftware],
-    recent_days: i64,
-) -> Result<(), String> {
-    let sheet = workbook.add_worksheet();
-    sheet
-        .set_name("Summary")
-        .map_err(|e| format!("Sheet name error: {e}"))?;
+pub fn export_excel(computers: &HashMap<u64, ComputerInfo>, path: &Path) -> Result<(), String> {
+    let mut workbook = Workbook::new();
+    write_inventory_sheet(&mut workbook, computers)?;
 
-    let header_fmt = Format::new()
-        .set_bold()
-        .set_background_color(Color::RGB(0x4472C4))
-        .set_font_color(Color::White);
-
-    let green_fmt = Format::new()
-        .set_background_color(Color::RGB(0xC6EFCE))
-        .set_font_color(Color::RGB(0x006100));
-
-    let headers = [
-        "Rank",
-        "Software Name",
-        "Publisher",
-        "Host Count",
-        "Latest Version",
-        "Last Updated",
-        "Recently Updated",
-    ];
-
-    for (col, h) in headers.iter().enumerate() {
-        sheet
-            .write_string_with_format(0, col as u16, *h, &header_fmt)
-            .map_err(|e| format!("Excel write error: {e}"))?;
-    }
-
-    let widths = [8.0, 40.0, 25.0, 12.0, 20.0, 20.0, 16.0];
-    for (col, w) in widths.iter().enumerate() {
-        let _ = sheet.set_column_width(col as u16, *w);
-    }
-
-    let now = chrono::Local::now().naive_local().date();
-
-    for (i, sw) in data.iter().enumerate() {
-        let row = (i + 1) as u32;
-        let recent = date_util::is_recent(&sw.last_updated, now, recent_days);
-        let last_updated = sw.last_updated.as_deref().unwrap_or("");
-
-        let _ = sheet.write_number_with_format(row, 0, (i + 1) as f64, &green_fmt);
-        let _ = sheet.write_string_with_format(row, 1, &sw.name, &green_fmt);
-        let _ = sheet.write_string_with_format(row, 2, &sw.publisher, &green_fmt);
-        let _ = sheet.write_number_with_format(row, 3, sw.total_host_count as f64, &green_fmt);
-        let _ = sheet.write_string_with_format(row, 4, &sw.latest_version, &green_fmt);
-        let _ = sheet.write_string_with_format(row, 5, last_updated, &green_fmt);
-        if recent {
-            let _ = sheet.write_string_with_format(row, 6, last_updated, &green_fmt);
-        } else {
-            let _ = sheet.write_string_with_format(row, 6, "No", &green_fmt);
-        }
-    }
+    workbook
+        .save(path)
+        .map_err(|e| format!("Failed to save Excel file: {e}"))?;
 
     Ok(())
 }
 
-fn write_detail_sheet(
+fn write_inventory_sheet(
     workbook: &mut Workbook,
-    data: &[AggregatedSoftware],
+    computers: &HashMap<u64, ComputerInfo>,
 ) -> Result<(), String> {
     let sheet = workbook.add_worksheet();
     sheet
-        .set_name("Detailed Versions")
+        .set_name("Computer Inventory")
         .map_err(|e| format!("Sheet name error: {e}"))?;
 
     let header_fmt = Format::new()
@@ -93,14 +85,7 @@ fn write_detail_sheet(
         .set_background_color(Color::RGB(0x4472C4))
         .set_font_color(Color::White);
 
-    let headers = [
-        "Software Name",
-        "Publisher",
-        "Total Hosts",
-        "Version",
-        "Version Hosts",
-        "Last Install Date",
-    ];
+    let headers = ["Hostname", "Serial Number", "Model"];
 
     for (col, h) in headers.iter().enumerate() {
         sheet
@@ -108,26 +93,19 @@ fn write_detail_sheet(
             .map_err(|e| format!("Excel write error: {e}"))?;
     }
 
-    let widths = [40.0, 25.0, 12.0, 25.0, 14.0, 20.0];
+    let widths = [35.0, 28.0, 28.0];
     for (col, w) in widths.iter().enumerate() {
         let _ = sheet.set_column_width(col as u16, *w);
     }
 
-    let mut row: u32 = 1;
-    for sw in data {
-        for ver in &sw.versions {
-            let _ = sheet.write_string(row, 0, &sw.name);
-            let _ = sheet.write_string(row, 1, &sw.publisher);
-            let _ = sheet.write_number(row, 2, sw.total_host_count as f64);
-            let _ = sheet.write_string(row, 3, &ver.version_name);
-            let _ = sheet.write_number(row, 4, ver.host_count as f64);
-            let _ = sheet.write_string(
-                row,
-                5,
-                ver.last_install_date.as_deref().unwrap_or(""),
-            );
-            row += 1;
-        }
+    let mut rows: Vec<&ComputerInfo> = computers.values().collect();
+    rows.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+
+    for (i, info) in rows.iter().enumerate() {
+        let row = (i + 1) as u32;
+        let _ = sheet.write_string(row, 0, &info.name);
+        let _ = sheet.write_string(row, 1, &info.serial_number);
+        let _ = sheet.write_string(row, 2, &info.model);
     }
 
     Ok(())

@@ -22,6 +22,8 @@ mod config;
 mod date_util;
 mod export;
 mod glpi_client;
+mod history_query;
+mod history_store;
 pub mod i18n;
 mod models;
 mod ui;

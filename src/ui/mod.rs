@@ -1,6 +1,11 @@
+pub mod agent_panel;
+pub mod cleanup_panel;
 pub mod connection_panel;
 pub mod export_panel;
 pub mod filter_panel;
+pub mod history_panel;
+pub mod license_panel;
 pub mod pc_panel;
+pub mod pc_software_panel;
 pub mod software_table;
 pub mod status_bar;

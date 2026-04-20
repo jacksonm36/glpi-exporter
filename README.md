@@ -13,6 +13,7 @@ Built with Rust and [egui](https://github.com/emilk/egui) for a fast, native GUI
   - **PCs tab** -- every computer that has the software installed, with the assigned user/contact
 - **Selection & PC panel** -- check software with checkboxes, then open the side panel to see all PCs across your selections grouped by computer
 - **Multi-format export** -- export the filtered table to **CSV**, **Excel (.xlsx)**, or **JSON** with a single click
+- **License key views** -- open dedicated panels for **License Keys from GLPI** and **License Keys from Computers** (computer inventory fields already collected by GLPI/FusionInventory)
 - **Excel formatting** -- blue header row, green data rows, "Recently Updated" column shows the actual date for recent items
 - **Bilingual UI** -- switch between English and Hungarian with one click (top-right button); choice is saved automatically
 - **Persistent settings** -- connection URL, tokens, and language preference are saved in `config.json`; selected software IDs are saved in `selections.json`; both files live next to the `.exe`
@@ -110,7 +111,21 @@ Click one of the export buttons in the toolbar:
 
 A native "Save As" dialog appears for each export. A green confirmation message shows the saved path.
 
-### 7. Switch language
+### 7. License keys
+
+Use the buttons next to **Connect & Fetch**:
+
+- **License Keys from GLPI** -- shows legal/license records stored in GLPI (`SoftwareLicense` data)
+- **License Keys from Computers** -- shows key-like values found in computer inventory fields already present in GLPI (no remote execution)
+
+In the side panel you can:
+
+- search by product/key/computer
+- filter by category (**All / Windows / Office / Third-party**)
+- copy any key with one click
+- export source-specific results to **License CSV** or **License JSON**
+
+### 8. Switch language
 
 Click the **HU** / **EN** button in the top-right corner to toggle between Hungarian and English. The entire UI updates instantly and the preference is saved for next launch.
 

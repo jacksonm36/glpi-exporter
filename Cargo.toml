@@ -8,7 +8,7 @@ description = "GLPI Software Inventory Explorer - GUI tool to browse and export 
 
 [dependencies]
 eframe = { version = "0.31", features = ["default"] }
-egui_extras = { version = "0.31", features = ["default"] }
+egui_extras = { version = "0.31", features = ["default", "chrono"] }
 reqwest = { version = "0.12", features = ["blocking", "json", "rustls-tls"], default-features = false }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

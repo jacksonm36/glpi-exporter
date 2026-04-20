@@ -1,20 +1,20 @@
+use crate::app::AppState;
 use crate::date_util;
 use crate::i18n::T;
-use crate::models::{AggregatedSoftware, FilterState};
+use crate::models::{AggregatedSoftware, FilterState, RecentTimeMode};
 use eframe::egui;
+use egui_extras::DatePickerButton;
 use std::collections::HashSet;
-
 pub fn show(
     ui: &mut egui::Ui,
-    filters: &mut FilterState,
+    state: &mut AppState,
     visible_data: &[AggregatedSoftware],
-    selected: &mut HashSet<u64>,
-    show_pc_panel: &mut bool,
     t: &T,
 ) -> bool {
     let mut changed = false;
 
     ui.horizontal(|ui| {
+        let filters = &mut state.filters;
         ui.label(t.software_name);
         let r = ui.add(
             egui::TextEdit::singleline(&mut filters.software_name)
@@ -38,6 +38,7 @@ pub fn show(
     });
 
     ui.horizontal(|ui| {
+        let filters = &mut state.filters;
         ui.label(t.min_hosts);
         let r = ui.add(
             egui::TextEdit::singleline(&mut filters.min_hosts)
@@ -54,18 +55,80 @@ pub fn show(
             .checkbox(&mut filters.recently_updated, t.updated_in_last)
             .changed()
         {
+            if filters.recently_updated {
+                filters.recent_install_only = false;
+                filters.every_host_install_in_window = false;
+            }
             changed = true;
         }
-        let r = ui.add(
-            egui::TextEdit::singleline(&mut filters.days)
-                .desired_width(40.0)
-                .hint_text("30"),
-        );
-        if r.changed() {
-            filters.days.retain(|c| c.is_ascii_digit());
+
+        ui.add_space(10.0);
+        let toggle_label = if filters.recently_updated {
+            t.fresh_list_toggle_full
+        } else {
+            t.fresh_list_toggle_recent
+        };
+        if ui
+            .button(toggle_label)
+            .on_hover_text(t.fresh_list_toggle_tip)
+            .clicked()
+        {
+            filters.recently_updated = !filters.recently_updated;
+            if filters.recently_updated {
+                filters.recent_install_only = false;
+                filters.every_host_install_in_window = false;
+            }
+            if !filters.recently_updated {
+                filters.recent_use_host_inventory = false;
+            }
+            if filters.days.trim().is_empty() {
+                filters.days = "30".to_string();
+            }
             changed = true;
         }
-        ui.label(t.days);
+
+        ui.add_space(8.0);
+        if ui
+            .add_enabled(
+                filters.recently_updated,
+                egui::Checkbox::new(&mut filters.recent_use_host_inventory, t.filter_by_pc_inventory),
+            )
+            .on_hover_text(t.filter_by_pc_inventory_tip)
+            .changed()
+        {
+            changed = true;
+        }
+
+        ui.add_space(8.0);
+        if ui
+            .checkbox(&mut filters.recent_install_only, t.installed_in_last)
+            .on_hover_text(t.installed_in_last_tip)
+            .changed()
+        {
+            if filters.recent_install_only {
+                filters.recently_updated = false;
+                filters.recent_use_host_inventory = false;
+                filters.every_host_install_in_window = false;
+            }
+            changed = true;
+        }
+
+        ui.add_space(8.0);
+        if ui
+            .checkbox(
+                &mut filters.every_host_install_in_window,
+                t.every_host_install_in_window,
+            )
+            .on_hover_text(t.every_host_install_in_window_tip)
+            .changed()
+        {
+            if filters.every_host_install_in_window {
+                filters.recently_updated = false;
+                filters.recent_install_only = false;
+                filters.recent_use_host_inventory = false;
+            }
+            changed = true;
+        }
 
         ui.add_space(10.0);
         ui.label(t.top_n);
@@ -96,7 +159,107 @@ pub fn show(
     });
 
     ui.horizontal(|ui| {
-        let sel_count = selected.len();
+        let filters = &mut state.filters;
+        ui.label(egui::RichText::new(t.recent_time_mode_tip).weak().small());
+        ui.add_space(8.0);
+        if ui
+            .selectable_label(
+                filters.recent_time_mode == RecentTimeMode::RollingDays,
+                t.recent_time_mode_rolling,
+            )
+            .clicked()
+        {
+            filters.recent_time_mode = RecentTimeMode::RollingDays;
+            changed = true;
+        }
+        if ui
+            .selectable_label(
+                filters.recent_time_mode == RecentTimeMode::CutoffFrom,
+                t.recent_time_mode_cutoff,
+            )
+            .clicked()
+        {
+            filters.recent_time_mode = RecentTimeMode::CutoffFrom;
+            changed = true;
+        }
+        if ui
+            .selectable_label(
+                filters.recent_time_mode == RecentTimeMode::Between,
+                t.recent_time_mode_between,
+            )
+            .clicked()
+        {
+            filters.recent_time_mode = RecentTimeMode::Between;
+            changed = true;
+        }
+
+        ui.add_space(12.0);
+        match filters.recent_time_mode {
+            RecentTimeMode::RollingDays => {
+                ui.label(t.days);
+                let r = ui.add(
+                    egui::TextEdit::singleline(&mut filters.days)
+                        .desired_width(40.0)
+                        .hint_text("30"),
+                );
+                if r.changed() {
+                    filters.days.retain(|c| c.is_ascii_digit());
+                    changed = true;
+                }
+            }
+            RecentTimeMode::CutoffFrom => {
+                ui.label(t.recent_date_cutoff);
+                ui.add(
+                    DatePickerButton::new(&mut filters.recent_cutoff_from).id_salt("flt_cutoff"),
+                );
+            }
+            RecentTimeMode::Between => {
+                ui.label(t.recent_date_from);
+                ui.add(
+                    DatePickerButton::new(&mut filters.recent_range_from).id_salt("flt_from"),
+                );
+                ui.label(t.recent_date_to);
+                ui.add(DatePickerButton::new(&mut filters.recent_range_to).id_salt("flt_to"));
+            }
+        }
+    });
+
+    ui.horizontal(|ui| {
+        let prev = state.main_table_show_audit_removals;
+        if ui
+            .checkbox(&mut state.main_table_show_audit_removals, t.main_table_audit_removals)
+            .on_hover_text(t.main_table_audit_removals_tip)
+            .changed()
+            && state.main_table_show_audit_removals
+            && !prev
+        {
+            state.request_audit_removals_refresh();
+        }
+        let can_refresh = !state.computers.is_empty()
+            && !state.audit_removals_loading
+            && state.status.allows_side_queries();
+        if ui
+            .add_enabled(can_refresh, egui::Button::new(t.main_table_audit_refresh))
+            .on_hover_text(t.main_table_audit_removals_tip)
+            .clicked()
+        {
+            state.request_audit_removals_refresh();
+        }
+        if state.audit_removals_loading {
+            ui.spinner();
+            ui.label(t.main_table_audit_loading);
+            if let Some((d, n)) = state.audit_removals_progress {
+                ui.label(format!("{d}/{n}"));
+            }
+        }
+        if let Some(ref err) = state.audit_removals_error {
+            ui.colored_label(egui::Color32::RED, err);
+        }
+    });
+
+    ui.horizontal(|ui| {
+        let filters = &mut state.filters;
+        let sel_count = state.selected.len();
         if ui
             .checkbox(&mut filters.show_selected_only, t.show_selected_only)
             .on_hover_text(t.show_selected_only_tip)
@@ -115,12 +278,12 @@ pub fn show(
             .clicked()
         {
             for sw in visible_data {
-                selected.insert(sw.software_id);
+                state.selected.insert(sw.software_id);
             }
         }
 
         if ui.button(t.deselect_all).clicked() {
-            selected.clear();
+            state.selected.clear();
             if filters.show_selected_only {
                 filters.show_selected_only = false;
                 changed = true;
@@ -130,13 +293,13 @@ pub fn show(
         ui.add_space(10.0);
         ui.separator();
         ui.add_space(10.0);
-        let pc_label = if *show_pc_panel { t.hide_pcs } else { t.show_pcs };
+        let pc_label = if state.show_pc_panel { t.hide_pcs } else { t.show_pcs };
         if ui
-            .add_enabled(!selected.is_empty(), egui::Button::new(pc_label))
+            .add_enabled(!state.selected.is_empty(), egui::Button::new(pc_label))
             .on_hover_text(t.show_pcs_tip)
             .clicked()
         {
-            *show_pc_panel = !*show_pc_panel;
+            state.show_pc_panel = !state.show_pc_panel;
         }
     });
 
@@ -531,7 +694,6 @@ pub fn apply_filters(
     let name_lower = filters.software_name.to_lowercase();
     let pub_lower = filters.publisher.to_lowercase();
     let min_hosts: usize = filters.min_hosts.parse().unwrap_or(0);
-    let days: i64 = filters.days.parse().unwrap_or(30);
     let top_n: Option<usize> = if filters.top_n.is_empty() {
         None
     } else {
@@ -549,16 +711,33 @@ pub fn apply_filters(
             if filters.hide_os_defaults && is_os_default(&sw.name, &sw.publisher) {
                 return false;
             }
-            if !name_lower.is_empty() && !sw.name.to_lowercase().contains(&name_lower) {
+            if !name_lower.is_empty() && !sw.name_lower.contains(&name_lower) {
                 return false;
             }
-            if !pub_lower.is_empty() && !sw.publisher.to_lowercase().contains(&pub_lower) {
+            if !pub_lower.is_empty() && !sw.publisher_lower.contains(&pub_lower) {
                 return false;
             }
             if sw.total_host_count < min_hosts {
                 return false;
             }
-            if filters.recently_updated && !date_util::is_recent(&sw.last_updated, now, days) {
+            if filters.recently_updated {
+                let recent_date = if filters.recent_use_host_inventory {
+                    &sw.last_host_inventory
+                } else {
+                    &sw.last_agent_pull
+                };
+                if !date_util::date_in_recency_window(recent_date, now, filters) {
+                    return false;
+                }
+            }
+            if filters.recent_install_only
+                && !date_util::date_in_recency_window(&sw.last_install_date, now, filters)
+            {
+                return false;
+            }
+            if filters.every_host_install_in_window
+                && !date_util::date_in_recency_window(&sw.all_hosts_install_floor, now, filters)
+            {
                 return false;
             }
             true

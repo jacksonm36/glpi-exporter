@@ -1,5 +1,6 @@
+use crate::date_util;
 use crate::i18n::T;
-use crate::models::{AggregatedSoftware, ComputerInfo};
+use crate::models::{AggregatedSoftware, ComputerInfo, FilterState};
 use eframe::egui;
 use std::collections::{HashMap, HashSet};
 
@@ -8,6 +9,7 @@ pub fn show(
     all_data: &[AggregatedSoftware],
     selected: &HashSet<u64>,
     computers: &HashMap<u64, ComputerInfo>,
+    filters: &FilterState,
     show: &mut bool,
     t: &T,
 ) {
@@ -29,10 +31,34 @@ pub fn show(
             });
             ui.separator();
 
+            let now = chrono::Local::now().naive_local().date();
+            let host_passes_inventory = |host_id: u64| {
+                if !(filters.recently_updated && filters.recent_use_host_inventory) {
+                    return true;
+                }
+                computers
+                    .get(&host_id)
+                    .and_then(|info| {
+                        let s = info.last_inventory.trim();
+                        if s.is_empty() {
+                            return None;
+                        }
+                        Some(date_util::date_in_recency_window(
+                            &Some(s.to_string()),
+                            now,
+                            filters,
+                        ))
+                    })
+                    .unwrap_or(false)
+            };
+
             let mut pc_to_software: HashMap<u64, Vec<&str>> = HashMap::new();
             for sw in all_data {
                 if selected.contains(&sw.software_id) {
                     for &host_id in &sw.host_ids {
+                        if !host_passes_inventory(host_id) {
+                            continue;
+                        }
                         pc_to_software
                             .entry(host_id)
                             .or_default()

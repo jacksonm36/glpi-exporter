@@ -1,55 +1,57 @@
-use crate::models::AggregatedSoftware;
+use crate::models::{AggregatedSoftware, ComputerInfo};
 use serde::Serialize;
+use std::collections::HashMap;
 use std::path::Path;
+
+#[derive(Serialize)]
+struct SoftwareTableReport {
+    generated_at: String,
+    software_count: usize,
+    software: Vec<AggregatedSoftware>,
+}
 
 #[derive(Serialize)]
 struct JsonReport {
     generated_at: String,
-    software_count: usize,
-    software: Vec<JsonSoftwareEntry>,
+    computer_count: usize,
+    computers: Vec<JsonComputerEntry>,
 }
 
 #[derive(Serialize)]
-struct JsonSoftwareEntry {
-    rank: usize,
-    name: String,
-    publisher: String,
-    host_count: usize,
-    latest_version: String,
-    last_updated: Option<String>,
-    versions: Vec<JsonVersionEntry>,
+struct JsonComputerEntry {
+    hostname: String,
+    serial_number: String,
+    model: String,
 }
 
-#[derive(Serialize)]
-struct JsonVersionEntry {
-    version_name: String,
-    host_count: usize,
-    last_install_date: Option<String>,
-}
-
-pub fn export_json(data: &[AggregatedSoftware], path: &Path) -> Result<(), String> {
-    let report = JsonReport {
+pub fn export_software_inventory_json(data: &[AggregatedSoftware], path: &Path) -> Result<(), String> {
+    let report = SoftwareTableReport {
         generated_at: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
         software_count: data.len(),
-        software: data
+        software: data.to_vec(),
+    };
+
+    let json = serde_json::to_string_pretty(&report)
+        .map_err(|e| format!("JSON serialize error: {e}"))?;
+
+    std::fs::write(path, json).map_err(|e| format!("Failed to write JSON: {e}"))?;
+
+    Ok(())
+}
+
+pub fn export_json(computers: &HashMap<u64, ComputerInfo>, path: &Path) -> Result<(), String> {
+    let mut rows: Vec<&ComputerInfo> = computers.values().collect();
+    rows.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+
+    let report = JsonReport {
+        generated_at: chrono::Local::now().format("%Y-%m-%d %H:%M:%S").to_string(),
+        computer_count: rows.len(),
+        computers: rows
             .iter()
-            .enumerate()
-            .map(|(i, sw)| JsonSoftwareEntry {
-                rank: i + 1,
-                name: sw.name.clone(),
-                publisher: sw.publisher.clone(),
-                host_count: sw.total_host_count,
-                latest_version: sw.latest_version.clone(),
-                last_updated: sw.last_updated.clone(),
-                versions: sw
-                    .versions
-                    .iter()
-                    .map(|v| JsonVersionEntry {
-                        version_name: v.version_name.clone(),
-                        host_count: v.host_count,
-                        last_install_date: v.last_install_date.clone(),
-                    })
-                    .collect(),
+            .map(|info| JsonComputerEntry {
+                hostname: info.name.clone(),
+                serial_number: info.serial_number.clone(),
+                model: info.model.clone(),
             })
             .collect(),
     };

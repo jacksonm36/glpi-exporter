@@ -1,5 +1,5 @@
 use crate::i18n::T;
-use crate::models::AggregatedSoftware;
+use crate::models::{AggregatedSoftware, HistoryViewSummary};
 use eframe::egui;
 
 pub fn show(ui: &mut egui::Ui, filtered_data: &[AggregatedSoftware], total_data: usize, t: &T) {
@@ -17,6 +17,21 @@ pub fn show(ui: &mut egui::Ui, filtered_data: &[AggregatedSoftware], total_data:
             ui.label(format!("{}: {}", t.total_installations, format_number(total_installations)));
         } else {
             ui.label(t.no_data_loaded);
+        }
+    });
+}
+
+pub fn show_history(ui: &mut egui::Ui, summary: Option<&HistoryViewSummary>, t: &T) {
+    ui.horizontal(|ui| {
+        if let Some(summary) = summary {
+            ui.label(format!(
+                "{} {} / {}: {}",
+                t.history_snapshot_label, summary.snapshot_captured_at, t.col_software_name, summary.software_count
+            ));
+            ui.separator();
+            ui.label(format!("{}: {}", t.col_hosts, format_number(summary.host_count)));
+        } else {
+            ui.label(t.history_no_snapshot);
         }
     });
 }
