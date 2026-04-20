@@ -9,6 +9,9 @@ use eframe::egui;
 use std::collections::{HashMap, HashSet};
 use std::sync::mpsc::{Receiver, Sender};
 
+/// Number of days used for the "Last 30d + Current" combined view in the PC Software panel.
+pub const PC_SOFTWARE_RECENT_DAYS: i64 = 30;
+
 pub struct AppState {
     pub config: AppConfig,
     pub status: FetchStatus,
@@ -287,9 +290,9 @@ impl AppState {
             return;
         };
         let days_back = if self.pc_software_recent30_combined {
-            30
+            PC_SOFTWARE_RECENT_DAYS
         } else {
-            self.pc_software_time_days.parse::<i64>().unwrap_or(30).max(1)
+            self.pc_software_time_days.parse::<i64>().unwrap_or(PC_SOFTWARE_RECENT_DAYS).max(1)
         };
         self.pc_software_log_loading = true;
         self.pc_software_log_error = None;

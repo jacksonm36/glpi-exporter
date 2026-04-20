@@ -1,4 +1,4 @@
-use crate::app::AppState;
+use crate::app::{AppState, PC_SOFTWARE_RECENT_DAYS};
 use crate::date_util;
 use crate::history_query;
 use crate::history_store;
@@ -848,7 +848,7 @@ pub fn show(ctx: &egui::Context, state: &mut AppState) {
                     // other filters; in show_deleted mode: use the regular time_cutoff.
                     let deleted_cutoff = if state.pc_software_recent30_combined {
                         let now = chrono::Local::now().naive_local().date();
-                        Some(now - chrono::Duration::days(30))
+                        Some(now - chrono::Duration::days(PC_SOFTWARE_RECENT_DAYS))
                     } else {
                         time_cutoff
                     };
