@@ -344,6 +344,8 @@ pub struct T {
     pub pc_software_hist_load_error: &'static str,
     pub pc_software_hist_pc_missing: &'static str,
     pub pc_software_stale_filter_hides_all: &'static str,
+    pub pc_software_recent30_btn: &'static str,
+    pub pc_software_recent30_tip: &'static str,
 }
 
 pub fn t(lang: Lang) -> &'static T {
@@ -662,6 +664,8 @@ static EN: T = T {
     pc_software_hist_load_error: "Could not load snapshot file.",
     pc_software_hist_pc_missing: "not in this snapshot file (showing live name only)",
     pc_software_stale_filter_hides_all: "All computers are hidden: agent last contact is older than the day limit (and inventory date is not newer). Increase \"Older than (days)\" or turn off \"Hide stale agents\".",
+    pc_software_recent30_btn: "Last 30d + Current",
+    pc_software_recent30_tip: "Show all currently installed software together with software that was installed or removed in the last 30 days — combined in one table.",
 };
 
 static HU: T = T {
@@ -973,4 +977,6 @@ static HU: T = T {
     pc_software_hist_load_error: "A pillanatkép fájl nem nyitható meg.",
     pc_software_hist_pc_missing: "nincs ebben a pillanatképben (csak élő név)",
     pc_software_stale_filter_hides_all: "Minden gép kiszűrve: az agent utolsó kapcsolata régebbi a napkorlátnál (és a leltár dátuma sem frissebb). Növelje a „Régebbi mint (nap)” értéket, vagy kapcsolja ki az „Elavult agentek elrejtése” opciót.",
+    pc_software_recent30_btn: "Elmúlt 30 nap + Jelenlegi",
+    pc_software_recent30_tip: "Az összes jelenleg telepített szoftver és az elmúlt 30 napban telepített vagy eltávolított szoftver egy táblában megjelenítve.",
 };

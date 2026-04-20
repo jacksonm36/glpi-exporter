@@ -82,6 +82,8 @@ pub struct AppState {
     pub pc_software_hist_cache_dirty: bool,
     pub pc_software_hist_cache_key: Option<(String, String, usize, String)>,
     pub pc_software_hist_cache: Option<PcSoftwareHistCache>,
+    /// Combined view: all currently installed software + deleted in last 30 days, in one table.
+    pub pc_software_recent30_combined: bool,
     pub agents: Vec<AgentInfo>,
     pub show_agent_panel: bool,
     pub agent_filter: String,
@@ -284,7 +286,11 @@ impl AppState {
         let Some(computer_id) = self.pc_software_selected else {
             return;
         };
-        let days_back = self.pc_software_time_days.parse::<i64>().unwrap_or(30).max(1);
+        let days_back = if self.pc_software_recent30_combined {
+            30
+        } else {
+            self.pc_software_time_days.parse::<i64>().unwrap_or(30).max(1)
+        };
         self.pc_software_log_loading = true;
         self.pc_software_log_error = None;
         self.pc_software_log_entries.clear();
@@ -591,6 +597,7 @@ impl GlpiApp {
                 pc_software_hist_cache_dirty: false,
                 pc_software_hist_cache_key: None,
                 pc_software_hist_cache: None,
+                pc_software_recent30_combined: false,
                 agents: Vec::new(),
                 show_agent_panel: false,
                 agent_filter: String::new(),

@@ -495,7 +495,7 @@ pub fn show(ctx: &egui::Context, state: &mut AppState) {
                 ui.add_space(8.0);
                 let show_del_prev = state.pc_software_show_deleted;
                 ui.add_enabled(
-                    !state.pc_software_hist_snapshot,
+                    !state.pc_software_hist_snapshot && !state.pc_software_recent30_combined,
                     egui::Checkbox::new(&mut state.pc_software_show_deleted, t.pc_software_show_deleted),
                 );
                 if state.pc_software_show_deleted != show_del_prev {
@@ -503,15 +503,39 @@ pub fn show(ctx: &egui::Context, state: &mut AppState) {
                     state.pc_software_log_error = None;
                 }
                 ui.add_space(12.0);
-                ui.checkbox(&mut state.pc_software_time_filter, t.pc_software_time_filter);
-                // Keep days visible so the "(days):" label does not look like a missing control.
-                ui.add_enabled_ui(state.pc_software_time_filter, |ui| {
-                    ui.add(
-                        egui::TextEdit::singleline(&mut state.pc_software_time_days)
-                            .desired_width(48.0)
-                            .hint_text("30"),
-                    );
+                ui.add_enabled_ui(!state.pc_software_recent30_combined, |ui| {
+                    ui.checkbox(&mut state.pc_software_time_filter, t.pc_software_time_filter);
+                    // Keep days visible so the "(days):" label does not look like a missing control.
+                    ui.add_enabled_ui(state.pc_software_time_filter, |ui| {
+                        ui.add(
+                            egui::TextEdit::singleline(&mut state.pc_software_time_days)
+                                .desired_width(48.0)
+                                .hint_text("30"),
+                        );
+                    });
                 });
+                ui.add_space(16.0);
+                // "Last 30d + Current" combined-view button
+                let btn_active = state.pc_software_recent30_combined;
+                let btn_label = egui::RichText::new(t.pc_software_recent30_btn)
+                    .color(if btn_active {
+                        egui::Color32::from_rgb(90, 200, 120)
+                    } else {
+                        ui.visuals().text_color()
+                    });
+                if ui
+                    .button(btn_label)
+                    .on_hover_text(t.pc_software_recent30_tip)
+                    .clicked()
+                {
+                    state.pc_software_recent30_combined = !state.pc_software_recent30_combined;
+                    if state.pc_software_recent30_combined {
+                        // entering combined mode: disable hist snapshot, reset log cache
+                        state.pc_software_hist_snapshot = false;
+                        state.pc_software_log_fetched_for = None;
+                        state.pc_software_log_error = None;
+                    }
+                }
             });
 
             // Row 3: hide stale agents in PC list (same setting as Agent panel)
@@ -609,9 +633,9 @@ pub fn show(ctx: &egui::Context, state: &mut AppState) {
                         Some(PcSoftwareHistCache::LoadError)
                     );
 
-                // Auto-fetch log when "show deleted" is on (live only)
+                // Auto-fetch log when "show deleted" is on (live only), or when combined mode is on
                 if !state.pc_software_hist_snapshot
-                    && state.pc_software_show_deleted
+                    && (state.pc_software_show_deleted || state.pc_software_recent30_combined)
                     && !state.pc_software_log_loading
                     && state.pc_software_log_fetched_for != Some(pc_id)
                 {
@@ -782,8 +806,10 @@ pub fn show(ctx: &egui::Context, state: &mut AppState) {
                     });
                 }
 
-                // Compute time filter cutoff (live list only)
-                let time_cutoff = if state.pc_software_time_filter && !state.pc_software_hist_snapshot
+                // Compute time filter cutoff (live list only, not used in combined mode)
+                let time_cutoff = if state.pc_software_time_filter
+                    && !state.pc_software_hist_snapshot
+                    && !state.pc_software_recent30_combined
                 {
                     let days = state.pc_software_time_days.parse::<i64>().unwrap_or(30).max(1);
                     let now = chrono::Local::now().naive_local().date();
@@ -814,8 +840,19 @@ pub fn show(ctx: &egui::Context, state: &mut AppState) {
                     )
                 };
 
-                // Merge deleted rows
-                if !state.pc_software_hist_snapshot && state.pc_software_show_deleted {
+                // Merge deleted rows — either from "show deleted" checkbox or combined mode
+                let need_deleted = !state.pc_software_hist_snapshot
+                    && (state.pc_software_show_deleted || state.pc_software_recent30_combined);
+                if need_deleted {
+                    // In combined mode: deleted rows use a fixed 30-day cutoff regardless of
+                    // other filters; in show_deleted mode: use the regular time_cutoff.
+                    let deleted_cutoff = if state.pc_software_recent30_combined {
+                        let now = chrono::Local::now().naive_local().date();
+                        Some(now - chrono::Duration::days(30))
+                    } else {
+                        time_cutoff
+                    };
+
                     if state.pc_software_log_loading {
                         ui.add_space(4.0);
                         ui.horizontal(|ui| {
@@ -835,7 +872,7 @@ pub fn show(ctx: &egui::Context, state: &mut AppState) {
                             &state.pc_software_filter,
                             state.pc_software_hide_windows,
                             state.pc_software_hide_kb,
-                            time_cutoff,
+                            deleted_cutoff,
                         );
                         rows.extend(deleted_rows);
                     }
