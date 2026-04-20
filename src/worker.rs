@@ -857,8 +857,10 @@ fn classify_glpi_software_history(linked_action: i64, old_val: &str, new_val: &s
         return PcLogAction::Removed;
     }
 
+    // Unknown action code with no usable old/new value context: default to Updated
+    // rather than guessing Installed, to avoid creating false "install" log entries.
     if linked_action > 0 {
-        PcLogAction::Installed
+        PcLogAction::Updated
     } else {
         PcLogAction::Removed
     }

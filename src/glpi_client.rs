@@ -407,7 +407,10 @@ fn find_windows_key_in_value(value: &Value) -> Option<String> {
             None
         }
         Value::Object(map) => {
-            // Prioritize fields likely to carry OS activation keys.
+            // Only search fields whose names are likely to carry OS activation keys.
+            // Scanning all values unconditionally risks returning serial numbers, UUIDs,
+            // asset tags, or other alphanumeric strings that happen to pass the key-format
+            // check as a false Windows product key.
             let preferred_fields = [
                 "serial",
                 "serialnumber",
@@ -422,11 +425,6 @@ fn find_windows_key_in_value(value: &Value) -> Option<String> {
                     if let Some(found) = find_windows_key_in_value(v) {
                         return Some(found);
                     }
-                }
-            }
-            for v in map.values() {
-                if let Some(found) = find_windows_key_in_value(v) {
-                    return Some(found);
                 }
             }
             None

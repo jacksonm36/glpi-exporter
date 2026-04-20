@@ -140,6 +140,10 @@ impl AppState {
         self.last_machine_details_fetch_id = None;
         self.cleanup_message = None;
         self.warning_message = None;
+        self.audit_removals_loading = false;
+        self.audit_removals_progress = None;
+        self.audit_removals_by_key.clear();
+        self.audit_removals_error = None;
 
         let _ = self.worker_tx.send(WorkerRequest::FetchAll {
             url: self.config.glpi_url.clone(),
@@ -386,6 +390,8 @@ impl AppState {
                     self.agents = agents;
                     self.warning_message = snapshot_warning;
                     self.audit_removals_by_key.clear();
+                    self.audit_removals_loading = false;
+                    self.audit_removals_progress = None;
                     self.audit_removals_error = None;
                     self.filtered_data =
                         ui::filter_panel::apply_filters(&self.all_data, &self.filters, &self.selected);

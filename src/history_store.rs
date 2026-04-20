@@ -99,8 +99,12 @@ fn safe_snapshot_path(file_name: &str) -> Result<PathBuf, String> {
     if file_name.contains("..") || file_name.contains('/') || file_name.contains('\\') {
         return Err("Invalid snapshot file name".to_string());
     }
-    let path = history_dir().join(file_name);
-    if path.parent() != Some(&history_dir()) {
+    if !file_name.ends_with(".json") {
+        return Err("Invalid snapshot file name".to_string());
+    }
+    let dir = history_dir();
+    let path = dir.join(file_name);
+    if path.parent() != Some(dir.as_path()) {
         return Err("Invalid snapshot path".to_string());
     }
     Ok(path)
